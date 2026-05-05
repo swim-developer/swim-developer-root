@@ -254,13 +254,25 @@ The fastest way to create a new service is using the Maven archetypes. They gene
 **Consumer** (receives data from external providers):
 
 ```bash
+# 1. Install the parent POM
+git clone https://github.com/swim-developer/swim-developer
+cd swim-developer
+./mvnw clean install
+cd ..
+
+# 2. Install the framework
 git clone https://github.com/swim-developer/swim-developer-framework
 cd swim-developer-framework
 ./mvnw clean install -DskipTests
+cd ..
 
+# 3. Install the consumer archetype
+git clone https://github.com/swim-developer/swim-consumer-archetype
 cd swim-consumer-archetype
 mvn clean install
+cd ..
 
+# 4. Generate the new consumer
 mvn archetype:generate \
   -DarchetypeGroupId=com.github.swim-developer \
   -DarchetypeArtifactId=swim-consumer-archetype \
@@ -275,19 +287,44 @@ mvn archetype:generate \
   -DcollectionPrefix=myservice \
   -DinteractiveMode=false
 
+# 5. Post-generation
 cd swim-myservice-consumer
 chmod +x mvnw
 ./mvnw compile
 ```
 
-This generates 38 Java classes. Only 10 require domain-specific implementation (event extraction, validation, filtering). The remaining 28 work out of the box.
+This generates 38 Java classes. Only 10 require domain-specific implementation (event extraction, validation, filtering). The remaining 28 work out of the box. See the [consumer archetype README](https://github.com/swim-developer/swim-consumer-archetype) for parameter descriptions and the full list of generated classes.
+
+After the project compiles:
+
+1. Add your data model dependency to `pom.xml` (e.g., `aixm-model` or `fixm-ed254-model`)
+2. Add your outbox router extension (e.g., `swim-outbox-kafka-dnotam`)
+3. Implement the 10 domain-specific classes (marked with `// TODO`)
+4. Create a `compose.yml` for local infrastructure (MongoDB, Kafka, Artemis, Consumer Validator), or use [Quarkus Dev Services](https://quarkus.io/guides/dev-services) to provision them automatically
+5. Use [swim-digital-notam-consumer](https://github.com/swim-developer/swim-digital-notam-consumer) as a reference implementation
 
 **Provider** (publishes data to external consumers):
 
 ```bash
+# 1. Install the parent POM (skip if already done above)
+git clone https://github.com/swim-developer/swim-developer
+cd swim-developer
+./mvnw clean install
+cd ..
+
+# 2. Install the framework (skip if already done above)
+git clone https://github.com/swim-developer/swim-developer-framework
+cd swim-developer-framework
+./mvnw clean install -DskipTests
+cd ..
+
+# 3. Install the provider archetype
+git clone https://github.com/swim-developer/swim-provider-archetype
 cd swim-provider-archetype
 mvn clean install
+cd ..
 
+# 4. Generate the new provider
 mvn archetype:generate \
   -DarchetypeGroupId=com.github.swim-developer \
   -DarchetypeArtifactId=swim-provider-archetype \
@@ -304,12 +341,21 @@ mvn archetype:generate \
   -DtopicName=MyServiceTopic \
   -DinteractiveMode=false
 
+# 5. Post-generation
 cd swim-myservice-provider
 chmod +x mvnw
 ./mvnw compile
 ```
 
-This generates 53 Java classes. Only 10 require domain-specific implementation. The remaining 43 work out of the box.
+This generates 53 Java classes. Only 10 require domain-specific implementation. The remaining 43 work out of the box. See the [provider archetype README](https://github.com/swim-developer/swim-provider-archetype) for parameter descriptions and the full list of generated classes.
+
+After the project compiles:
+
+1. Add your data model dependency to `pom.xml` (e.g., `aixm-model` or `fixm-ed254-model`)
+2. Add your ingress handler extension (e.g., `swim-inbox-kafka-dnotam`)
+3. Implement the 10 domain-specific classes (marked with `// TODO`)
+4. Create a `compose.yml` for local infrastructure (PostgreSQL, Kafka, Artemis, Provider Validator), or use [Quarkus Dev Services](https://quarkus.io/guides/dev-services) to provision them automatically
+5. Use [swim-digital-notam-provider](https://github.com/swim-developer/swim-digital-notam-provider) as a reference implementation
 
 See the archetype READMEs for the full list of parameters and generated classes.
 
