@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 320" font-family="Arial, sans-serif">
+
+  <text x="430" y="22" text-anchor="middle" font-size="14" font-weight="bold" fill="#212121">swim-developer Repository Ecosystem</text>
+
+  <rect x="20" y="40" width="140" height="44" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+  <text x="90" y="58" text-anchor="middle" font-size="10" font-weight="bold" fill="#bf360c">aixm-model</text>
+  <text x="90" y="73" text-anchor="middle" font-size="9" fill="#546e7a">AIXM XSD to Java</text>
+
+  <rect x="180" y="40" width="140" height="44" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+  <text x="250" y="58" text-anchor="middle" font-size="10" font-weight="bold" fill="#bf360c">fixm-ed254-model</text>
+  <text x="250" y="73" text-anchor="middle" font-size="9" fill="#546e7a">FIXM XSD to Java</text>
+
+  <rect x="340" y="40" width="160" height="44" rx="6" fill="#fce4ec" stroke="#c62828" stroke-width="1.5"/>
+  <text x="420" y="58" text-anchor="middle" font-size="10" font-weight="bold" fill="#b71c1c">swim-developer-framework</text>
+  <text x="420" y="73" text-anchor="middle" font-size="9" fill="#546e7a">core / consumer / provider</text>
+
+  <rect x="520" y="40" width="140" height="44" rx="6" fill="#e8eaf6" stroke="#3949ab" stroke-width="1.5"/>
+  <text x="590" y="58" text-anchor="middle" font-size="10" font-weight="bold" fill="#1a237e">swim-developer-extensions</text>
+  <text x="590" y="73" text-anchor="middle" font-size="9" fill="#546e7a">Kafka inbox / outbox</text>
+
+  <rect x="680" y="40" width="160" height="44" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+  <text x="760" y="58" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d47a1">swim-developer-add-ons</text>
+  <text x="760" y="73" text-anchor="middle" font-size="9" fill="#546e7a">Artemis plugin / Keycloak SPI</text>
+
+  <rect x="20" y="110" width="180" height="44" rx="6" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2"/>
+  <text x="110" y="128" text-anchor="middle" font-size="10" font-weight="bold" fill="#1b5e20">swim-digital-notam-consumer</text>
+  <text x="110" y="143" text-anchor="middle" font-size="9" fill="#546e7a">DNOTAM / ANSP consumer</text>
+
+  <rect x="220" y="110" width="180" height="44" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="2"/>
+  <text x="310" y="128" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d47a1">swim-digital-notam-provider</text>
+  <text x="310" y="143" text-anchor="middle" font-size="9" fill="#546e7a">DNOTAM / AISP provider</text>
+
+  <rect x="420" y="110" width="180" height="44" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="2"/>
+  <text x="510" y="128" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d47a1">swim-ed254-consumer</text>
+  <text x="510" y="143" text-anchor="middle" font-size="9" fill="#546e7a">Extended AMAN / ATSU consumer</text>
+
+  <rect x="620" y="110" width="180" height="44" rx="6" fill="#fce4ec" stroke="#c62828" stroke-width="2"/>
+  <text x="710" y="128" text-anchor="middle" font-size="10" font-weight="bold" fill="#b71c1c">swim-ed254-provider</text>
+  <text x="710" y="143" text-anchor="middle" font-size="9" fill="#546e7a">Extended AMAN / AISP provider</text>
+
+  <rect x="20" y="200" width="200" height="44" rx="6" fill="#fff8e1" stroke="#f57f17" stroke-width="1.5"/>
+  <text x="120" y="218" text-anchor="middle" font-size="10" font-weight="bold" fill="#e65100">swim-developer-validators</text>
+  <text x="120" y="233" text-anchor="middle" font-size="9" fill="#546e7a">consumer / provider validators</text>
+
+  <rect x="240" y="200" width="180" height="44" rx="6" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.5"/>
+  <text x="330" y="218" text-anchor="middle" font-size="10" font-weight="bold" fill="#4a148c">swim-operator</text>
+  <text x="330" y="233" text-anchor="middle" font-size="9" fill="#546e7a">Kubernetes / OpenShift Operator</text>
+
+  <rect x="440" y="200" width="180" height="44" rx="6" fill="#e0f2f1" stroke="#00695c" stroke-width="1.5"/>
+  <text x="530" y="218" text-anchor="middle" font-size="10" font-weight="bold" fill="#004d40">swim-deploy-minikube</text>
+  <text x="530" y="233" text-anchor="middle" font-size="9" fill="#546e7a">Ansible / Minikube local env</text>
+
+  <rect x="640" y="200" width="180" height="44" rx="6" fill="#eceff1" stroke="#607d8b" stroke-width="1.5"/>
+  <text x="730" y="218" text-anchor="middle" font-size="10" font-weight="bold" fill="#37474f">swim-developer-tools</text>
+  <text x="730" y="233" text-anchor="middle" font-size="9" fill="#546e7a">compose / certs / scripts</text>
+
+  <text x="430" y="290" text-anchor="middle" font-size="10" fill="#78909c">Each repository is independent. Clone only what you need.</text>
+
+</svg>
