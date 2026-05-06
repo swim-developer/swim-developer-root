@@ -112,6 +112,7 @@ For C4 diagrams, sequence diagrams, and architecture decision records, see the [
 |--------|-------------|
 | **swim-consumer-archetype** | Generates a complete consumer service project (38 classes, MongoDB, Kafka, hexagonal architecture) |
 | **swim-provider-archetype** | Generates a complete provider service project (53 classes, PostgreSQL, AMQP, hexagonal architecture) |
+| **swim-model-archetype** | Generates a complete data model project (JAXB bindings, XSD validation, thread-safe unmarshalling) |
 
 ### Validators
 
@@ -159,6 +160,7 @@ swim-developer/
 |
 |-- swim-consumer-archetype/                 Maven archetype for new consumer services
 |-- swim-provider-archetype/                 Maven archetype for new provider services
+|-- swim-model-archetype/                    Maven archetype for new data model projects
 |
 +-- swim-validators/                         Compliance validators (7 modules)
     |-- swim-validator-core/
@@ -170,7 +172,7 @@ swim-developer/
     +-- swim-ed254-provider-validator/
 ```
 
-25 Maven modules, 4 deployable services, 6 framework libraries, 4 extension adapters, 2 archetypes, 7 validators, 2 data models.
+26 Maven modules, 4 deployable services, 6 framework libraries, 4 extension adapters, 3 archetypes, 7 validators, 2 data models.
 
 ---
 
@@ -221,6 +223,7 @@ Each project is an independent Git repository. Clone only what you need.
 | [swim-developer-extensions](https://github.com/swim-developer/swim-developer-extensions) | Kafka inbox/outbox adapters | Service integrators |
 | [aixm-model](https://github.com/swim-developer/aixm-model) | AIXM 5.1.1 JAXB bindings | Anyone parsing DNOTAM XML |
 | [fixm-model-ed254](https://github.com/swim-developer/fixm-model-ed254) | FIXM 4.3 + ED-254 JAXB bindings | Anyone parsing ED-254 XML |
+| [swim-model-archetype](https://github.com/swim-developer/swim-model-archetype) | Maven archetype for new data model projects | Service developers building new data models |
 | [swim-developer-operator](https://github.com/swim-developer/swim-developer-operator) | Kubernetes/OpenShift Operator | Platform engineers |
 | [swim-developer-add-ons](https://github.com/swim-developer/swim-developer-add-ons) | Artemis ACK plugin, Keycloak SPI | Platform engineers |
 | [swim-developer-tools](https://github.com/swim-developer/swim-developer-tools) | Cert generation, full-stack compose, pipelines | All developers |
@@ -247,9 +250,52 @@ podman compose up -d
 ./mvnw quarkus:dev
 ```
 
+### "I want to build a new data model"
+
+If your SWIM service uses a data exchange standard not yet available (e.g., FIXM FF-ICE, a new AIXM extension), you need a data model project first. The model archetype generates a JAXB project with XSD validation and thread-safe unmarshalling.
+
+```bash
+# 1. Install the parent POM
+git clone https://github.com/swim-developer/swim-developer
+cd swim-developer
+./mvnw clean install
+cd ..
+
+# 2. Install the model archetype
+git clone https://github.com/swim-developer/swim-model-archetype
+cd swim-model-archetype
+mvn clean install
+cd ..
+
+# 3. Generate the new data model
+mvn archetype:generate \
+  -DarchetypeGroupId=com.github.swim-developer \
+  -DarchetypeArtifactId=swim-model-archetype \
+  -DarchetypeVersion=1.0.0-SNAPSHOT \
+  -DgroupId=com.github.swim-developer \
+  -DartifactId=fixm-mymodel-model \
+  -Dversion=1.0.0-SNAPSHOT \
+  -Dpackage=aero.fixm.mymodel \
+  -DmodelName=mymodel \
+  -DmodelDisplayName="My Model" \
+  -DmodelPrefix=Mymodel \
+  -DrootSchema=MyModel.xsd \
+  -DdataStandard=FIXM \
+  -DinteractiveMode=false
+
+# 4. Post-generation
+cd fixm-mymodel-model
+chmod +x mvnw
+./mvnw compile
+```
+
+This generates 3 Java classes (unmarshaller pool, XSD validator, test) plus build configuration. After generation, copy your XSD schemas into `src/main/resources/schemas/`, configure the JAXB bindings, and run `./mvnw process-sources -Pgenerate-xjc` to produce the JAXB classes.
+
+See the [model archetype README](https://github.com/swim-developer/swim-model-archetype) for the full list of parameters and post-generation setup steps. Use **fixm-ed254-model** and **aixm-model** as reference implementations.
+
 ### "I want to build a new SWIM service"
 
-The fastest way to create a new service is using the Maven archetypes. They generate a complete project with hexagonal architecture, all mechanical classes pre-configured, and only domain-specific classes left to implement.
+The fastest way to create a new service is using the Maven archetypes. They generate a complete project with hexagonal architecture, all mechanical classes pre-configured, and only domain-specific classes left to implement. If your service uses a custom data model, build it first using the model archetype above.
 
 **Consumer** (receives data from external providers):
 
