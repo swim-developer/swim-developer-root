@@ -1,0 +1,466 @@
+services:
+
+  provider-postgres:
+    image: docker.io/library/postgres:17
+    container_name: dnotam-provider-postgres
+    environment:
+      POSTGRES_DB: swim-dnotam
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres      
+      TZ: Europe/Madrid
+      PGTZ: Europe/Madrid
+    ports:
+      - "5432:5432"
+    volumes:
+      - provider-postgres-data:/var/lib/postgresql/data
+    networks:
+      - swim-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  dnotam-consumer-mongodb:
+    image: quay.io/mongodb/mongodb-community-server:8.0-ubi9-slim
+    container_name: dnotam-consumer-mongodb
+    command: ["mongod", "--quiet", "--logpath", "/dev/null"]
+    environment:
+      MONGO_INITDB_DATABASE: swim-dnotam
+    ports:
+      - "27017:27017"
+    volumes:
+      - dnotam-consumer-mongodb-data:/data/db
+    networks:
+      - swim-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  dnotam-consumer-mongo-express:
+    image: docker.io/library/mongo-express:1.0
+    container_name: dnotam-consumer-mongo-express
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://dnotam-consumer-mongodb:27017/
+      ME_CONFIG_BASICAUTH: false
+    ports:
+      - "9081:8081"
+    networks:
+      - swim-network
+    depends_on:
+      dnotam-consumer-mongodb:
+        condition: service_healthy
+  
+  provider-artemis:
+    build:
+      context: ..
+      dockerfile: swim-developer-tools/infrastructure/provider-artemis/Containerfile
+    container_name: dnotam-provider-artemis
+    depends_on:
+      - keycloak
+    extra_hosts:
+      - "keycloak.swim.lab:host-gateway"
+    ports:
+      - "5672:5672"
+      - "5671:5671"
+      - "8161:8161"
+    environment:
+      TZ: Europe/Madrid
+    volumes:
+      - provider-artemis-data:/home/jboss/amq-broker/data
+    networks:
+      - swim-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8161/console/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  
+  kafka:
+    image: docker.io/apache/kafka:4.1.2
+    hostname: kafka
+    container_name: kafka
+    ports:
+      - 9092:9092
+    networks:
+      - swim-network
+    environment:
+      TZ: Europe/Madrid
+      KAFKA_BROKER_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,CONTROLLER://kafka:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      CLUSTER_ID: LOCAL_KAFKA_CLUSTER
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: false
+
+  kafka-init:
+    image: docker.io/apache/kafka:4.1.2
+    container_name: kafka-init
+    depends_on:
+      - kafka
+    networks:
+      - swim-network
+    environment:
+      TZ: Europe/Madrid
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo 'Waiting for Kafka...'
+        until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --list > /dev/null 2>&1; do sleep 2; done
+        echo 'Creating topics...'
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic dnotam-inbox-topic              --partitions 10 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic ed254-inbox-topic               --partitions 10 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic dnotam-events-all-topic        --partitions 10 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic dnotam-events-closure-topic    --partitions 3  --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic dnotam-events-restriction-topic --partitions 3  --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic dnotam-events-surface-condition-topic --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic dnotam-events-airspace-topic   --partitions 3  --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic dnotam-events-hazards-navaids-topic --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic dnotam-events-others-topic     --partitions 3  --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic dnotam-events-dlq-topic        --partitions 1  --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic ed254-arrival-sequence-topic   --partitions 3  --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic ed254-provider-exception-topic --partitions 3  --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic ed254-dlq-topic               --partitions 1  --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic ed254-outbox                  --partitions 3  --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic ed254-dlq                     --partitions 1  --replication-factor 1
+        echo 'All topics created.'
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --list
+
+  akhq:
+    image: docker.io/tchiotludo/akhq:0.27.0
+    depends_on:
+      - kafka
+    container_name: akhq
+    ports:
+      - "9980:8080"
+    networks:
+      - swim-network
+    environment:
+      TZ: Europe/Madrid
+      AKHQ_CONFIGURATION: |
+        akhq:
+          server:
+            port: 8080
+          connections:
+            local:
+              properties:
+                bootstrap.servers: "kafka:29092"
+
+  ed254-consumer-mongodb:
+    image: quay.io/mongodb/mongodb-community-server:8.0-ubi9-slim
+    container_name: ed254-consumer-mongodb
+    command: ["mongod", "--quiet", "--logpath", "/dev/null"]
+    environment:
+      MONGO_INITDB_DATABASE: swim-ed254
+    ports:
+      - "27018:27017"
+    volumes:
+      - ed254-consumer-mongodb-data:/data/db
+    networks:
+      - swim-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  ed254-consumer-mongo-express:
+    image: docker.io/library/mongo-express:1.0
+    container_name: ed254-consumer-mongo-express
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://ed254-consumer-mongodb:27017/
+      ME_CONFIG_BASICAUTH: false
+    ports:
+      - "9082:8081"
+    networks:
+      - swim-network
+    depends_on:
+      ed254-consumer-mongodb:
+        condition: service_healthy
+
+  ed254-consumer-validator-artemis:
+    build:
+      context: ..
+      dockerfile: swim-developer-validators/infrastructure/artemis/Containerfile
+    container_name: ed254-consumer-validator-artemis
+    ports:
+      - "5676:5672"
+      - "5675:5671"
+      - "8165:8161"
+    environment:
+      TZ: Europe/Madrid
+      ARTEMIS_USER: admin
+      ARTEMIS_PASSWORD: admin
+    volumes:
+      - ed254-consumer-validator-artemis-data:/var/lib/artemis-instance/data
+    networks:
+      - swim-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8161/console/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  ed254-consumer-validator-mariadb:
+    image: docker.io/library/mariadb:12-ubi
+    container_name: ed254-consumer-validator-mariadb
+    ports:
+      - "3309:3306"
+    environment:
+      TZ: Europe/Madrid
+      MARIADB_DATABASE: swim_ed254_consumer_validator
+      MARIADB_USER: swim
+      MARIADB_PASSWORD: swim
+      MARIADB_ROOT_PASSWORD: root
+    volumes:
+      - ed254-consumer-validator-mariadb-data:/var/lib/mysql
+    networks:
+      - swim-network
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  dnotam-consumer-validator-mariadb:
+    image: docker.io/library/mariadb:12-ubi
+    container_name: dnotam-consumer-validator-mariadb
+    ports:
+      - "3307:3306"
+    environment:
+      TZ: Europe/Madrid
+      MARIADB_DATABASE: swim_consumer_validator
+      MARIADB_USER: swim
+      MARIADB_PASSWORD: swim
+      MARIADB_ROOT_PASSWORD: root
+    volumes:
+      - dnotam-consumer-validator-mariadb-data:/var/lib/mysql
+    networks:
+      - swim-network
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  dnotam-consumer-validator-artemis:
+    build:
+      context: ..
+      dockerfile: swim-developer-validators/infrastructure/artemis/Containerfile
+    container_name: dnotam-consumer-validator-artemis
+    ports:
+      - "5674:5672"
+      - "5673:5671"
+      - "8163:8161"
+    environment:
+      TZ: Europe/Madrid
+      ARTEMIS_USER: admin
+      ARTEMIS_PASSWORD: admin
+    volumes:
+      - dnotam-consumer-validator-artemis-data:/var/lib/artemis-instance/data
+    networks:
+      - swim-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8161/console/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  dnotam-provider-validator-mariadb:
+    image: docker.io/library/mariadb:12-ubi
+    container_name: dnotam-provider-validator-mariadb
+    ports:
+      - "3308:3306"
+    environment:
+      TZ: Europe/Madrid
+      MARIADB_DATABASE: swim_provider_validator
+      MARIADB_USER: swim
+      MARIADB_PASSWORD: swim
+      MARIADB_ROOT_PASSWORD: root
+    volumes:
+      - dnotam-provider-validator-mariadb-data:/var/lib/mysql
+    networks:
+      - swim-network
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  dnotam-consumer-validator-adminer:
+    image: docker.io/library/adminer:latest
+    container_name: dnotam-consumer-validator-adminer
+    ports:
+      - "9007:8080"
+    environment:
+      TZ: Europe/Madrid
+      ADMINER_DEFAULT_SERVER: dnotam-consumer-validator-mariadb
+      ADMINER_DESIGN: dracula
+    networks:
+      - swim-network
+    depends_on:
+      dnotam-consumer-validator-mariadb:
+        condition: service_healthy
+      dnotam-provider-validator-mariadb:
+        condition: service_healthy
+
+  keycloak-postgres:
+    image: docker.io/library/postgres:17
+    container_name: keycloak-postgres
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: password      
+      TZ: Europe/Madrid
+      PGTZ: Europe/Madrid
+    volumes:
+      - keycloak-postgres-data:/var/lib/postgresql/data
+    networks:
+      - swim-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+  
+  keycloak:
+    image: registry.redhat.io/rhbk/keycloak-rhel9:26.4-10
+    container_name: keycloak
+    hostname: keycloak
+    depends_on:
+      keycloak-postgres:
+        condition: service_healthy
+    networks:
+      swim-network:
+        aliases:
+          - keycloak.swim.lab
+    restart: unless-stopped
+    ports:
+      - "8543:8443"
+    command: start-dev --import-realm --verbose
+    volumes:
+      - keycloak-certs:/opt/keycloak/certs:ro
+      - ./tools/keycloak/realm:/opt/keycloak/data/import
+      - keycloak-providers:/opt/keycloak/providers:ro
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: password
+      SWIM_ROLE_TARGET_CLIENT: amq-broker
+      SWIM_ROLE_SUFFIXES: -swim-dnotam-v1-amq-role,-swim-ed254-v1-amq-role
+      DEBUG_PORT: '*:8787'
+      TZ: Europe/Madrid
+      KC_LOG: console,file
+      KC_LOG_LEVEL: INFO,org.keycloak.transaction:warn,org.keycloak.services.scheduled:warn,org.hibernate:info,org.infinispan.protostream:info,io.quarkus.bootstrap.classloading:warn,org.keycloak.quarkus.runtime:warn
+      KC_LOG_FILE: /opt/keycloak/data/logs/keycloak.log
+      KC_HTTPS_KEY_STORE_FILE: /opt/keycloak/certs/keystore.p12
+      KC_HTTPS_KEY_STORE_PASSWORD: changeit
+      KC_TRUSTSTORE_PATHS: /opt/keycloak/certs/ca.crt
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_HOSTNAME_STRICT_BACKCHANNEL: true
+      KC_HOSTNAME: https://keycloak.swim.lab:8543
+      KC_HOSTNAME_STRICT: false
+      KC_FEATURES: preview
+      KC_HTTP_ENABLED: false
+      KC_HEALTH_ENABLED: false
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: password
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "3200:3200"
+    networks:
+      - swim-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-remote-write-receiver'
+      - '--enable-feature=exemplar-storage'
+      - '--enable-feature=native-histograms'
+    depends_on:
+      - provider-artemis
+      - tempo
+    networks:
+      - swim-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: true
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: true
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor metricsSummary
+      GF_INSTALL_PLUGINS: https://storage.googleapis.com/integration-artifacts/grafana-exploretraces-app/grafana-exploretraces-app-latest.zip;grafana-traces-app
+      GF_LOG_LEVEL: warn
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - tempo
+    networks:
+      - swim-network
+
+volumes:
+  dnotam-consumer-mongodb-data:
+  ed254-consumer-mongodb-data:
+  provider-postgres-data:
+  provider-artemis-data:
+  dnotam-consumer-validator-mariadb-data:
+  dnotam-consumer-validator-artemis-data:
+  ed254-consumer-validator-artemis-data:
+  ed254-consumer-validator-mariadb-data:
+  dnotam-provider-validator-mariadb-data:
+  keycloak-postgres-data:
+  keycloak-data:
+  keycloak-certs:
+    external: true
+  keycloak-providers:
+    external: true
+  tempo-data:
+  prometheus-data:
+  grafana-data:
+networks:
+  swim-network:
+    name: swim-network
+    driver: bridge

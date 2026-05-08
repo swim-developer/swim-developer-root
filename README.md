@@ -94,8 +94,8 @@ For C4 diagrams, sequence diagrams, and architecture decision records, see the [
 
 | Module | What it does |
 |--------|-------------|
-| **aixm-model** | JAXB bindings for AIXM 5.1.1 and GML 3.2.1, generated from XSD |
-| **fixm-ed254-model** | JAXB bindings for FIXM 4.3 and ED-254 extension, generated from XSD |
+| **swim-aixm-model** | JAXB bindings for AIXM 5.1.1 and GML 3.2.1, generated from XSD |
+| **swim-fixm-model-ed254** | JAXB bindings for FIXM 4.3 and ED-254 extension, generated from XSD |
 
 ### Extensions
 
@@ -149,8 +149,8 @@ swim-developer/
 |-- swim-ed254-provider/                     ED-254 Provider service
 |-- swim-ed254-consumer/                     ED-254 Consumer service
 |
-|-- aixm-model/                              AIXM 5.1.1 data model
-|-- fixm-ed254-model/                        FIXM 4.3 / ED-254 data model
+|-- swim-aixm-model/                         AIXM 5.1.1 data model
+|-- swim-fixm-model-ed254/                   FIXM 4.3 / ED-254 data model
 |
 |-- swim-extensions/                         Kafka inbox/outbox adapters (4 modules)
 |   |-- swim-outbox-kafka-dnotam/
@@ -221,8 +221,8 @@ Each project is an independent Git repository. Clone only what you need.
 | [swim-ed254-provider](https://github.com/swim-developer/swim-ed254-provider) | ED-254 Arrival Sequence Provider | AISPs publishing E-AMAN data |
 | [swim-developer-validators](https://github.com/swim-developer/swim-developer-validators) | Compliance validators (consumer + provider) | Service developers, conformance testing |
 | [swim-developer-extensions](https://github.com/swim-developer/swim-developer-extensions) | Kafka inbox/outbox adapters | Service integrators |
-| [aixm-model](https://github.com/swim-developer/aixm-model) | AIXM 5.1.1 JAXB bindings | Anyone parsing DNOTAM XML |
-| [fixm-model-ed254](https://github.com/swim-developer/fixm-model-ed254) | FIXM 4.3 + ED-254 JAXB bindings | Anyone parsing ED-254 XML |
+| [swim-aixm-model](https://github.com/swim-developer/swim-aixm-model) | AIXM 5.1.1 JAXB bindings | Anyone parsing DNOTAM XML |
+| [swim-fixm-model-ed254](https://github.com/swim-developer/swim-fixm-model-ed254) | FIXM 4.3 + ED-254 JAXB bindings | Anyone parsing ED-254 XML |
 | [swim-model-archetype](https://github.com/swim-developer/swim-model-archetype) | Maven archetype for new data model projects | Service developers building new data models |
 | [swim-developer-operator](https://github.com/swim-developer/swim-developer-operator) | Kubernetes/OpenShift Operator | Platform engineers |
 | [swim-developer-add-ons](https://github.com/swim-developer/swim-developer-add-ons) | Artemis ACK plugin, Keycloak SPI | Platform engineers |
@@ -291,7 +291,7 @@ chmod +x mvnw
 
 This generates 3 Java classes (unmarshaller pool, XSD validator, test) plus build configuration. After generation, copy your XSD schemas into `src/main/resources/schemas/`, configure the JAXB bindings, and run `./mvnw process-sources -Pgenerate-xjc` to produce the JAXB classes.
 
-See the [model archetype README](https://github.com/swim-developer/swim-model-archetype) for the full list of parameters and post-generation setup steps. Use **fixm-ed254-model** and **aixm-model** as reference implementations.
+See the [model archetype README](https://github.com/swim-developer/swim-model-archetype) for the full list of parameters and post-generation setup steps. Use **swim-fixm-model-ed254** and **swim-aixm-model** as reference implementations.
 
 ### "I want to build a new SWIM service"
 
@@ -343,7 +343,7 @@ This generates 38 Java classes. Only 10 require domain-specific implementation (
 
 After the project compiles:
 
-1. Add your data model dependency to `pom.xml` (e.g., `aixm-model` or `fixm-ed254-model`)
+1. Add your data model dependency to `pom.xml` (e.g., `swim-aixm-model` or `swim-fixm-model-ed254`)
 2. Add your outbox router extension (e.g., `swim-outbox-kafka-dnotam`)
 3. Implement the 10 domain-specific classes (marked with `// TODO`)
 4. Create a `compose.yml` for local infrastructure (MongoDB, Kafka, Artemis, Consumer Validator), or use [Quarkus Dev Services](https://quarkus.io/guides/dev-services) to provision them automatically
@@ -397,7 +397,7 @@ This generates 53 Java classes. Only 10 require domain-specific implementation. 
 
 After the project compiles:
 
-1. Add your data model dependency to `pom.xml` (e.g., `aixm-model` or `fixm-ed254-model`)
+1. Add your data model dependency to `pom.xml` (e.g., `swim-aixm-model` or `swim-fixm-model-ed254`)
 2. Add your ingress handler extension (e.g., `swim-inbox-kafka-dnotam`)
 3. Implement the 10 domain-specific classes (marked with `// TODO`)
 4. Create a `compose.yml` for local infrastructure (PostgreSQL, Kafka, Artemis, Provider Validator), or use [Quarkus Dev Services](https://quarkus.io/guides/dev-services) to provision them automatically
@@ -407,7 +407,36 @@ See the archetype READMEs for the full list of parameters and generated classes.
 
 ### "I want to test a full stack locally"
 
-Clone `swim-developer-tools`, it contains a multi-service `compose.yml` that starts all services together, along with the certificate generation scripts.
+The full-stack `compose.yml` lives in this repository (`swim-developer-root`). It uses a build context that spans sibling repositories, so the following repos must exist **in the same parent folder**:
+
+| Repository | Required for |
+|---|---|
+| `swim-developer-root` | compose files (this repo) |
+| `swim-developer-tools` | provider-artemis image, certificates, Keycloak config |
+| `swim-developer-validators` | consumer-validator-artemis image |
+| `swim-developer-add-ons` | Artemis ACK plugin (must be built first: `mvn clean package -DskipTests` inside `activemq-log-plugins/`) |
+
+```bash
+# Clone the required repos as siblings
+git clone https://github.com/swim-developer/swim-developer
+git clone https://github.com/swim-developer/swim-developer-tools
+git clone https://github.com/swim-developer/swim-developer-validators
+git clone https://github.com/swim-developer/swim-developer-add-ons
+
+# Build the ACK plugin (needed by provider-artemis image)
+cd swim-developer-add-ons/activemq-log-plugins
+mvn clean package -DskipTests
+cd ../..
+
+# Generate certificates (first time only)
+cd swim-developer-tools/infrastructure/certificates
+./generate-certs.sh
+cd ../../..
+
+# Start the full stack
+cd swim-developer
+podman compose up -d
+```
 
 ---
 

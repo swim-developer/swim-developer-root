@@ -118,8 +118,8 @@ graph LR
     classDef svc fill:#BFDBFE,stroke:#1D4ED8,color:#1e3a5f
     classDef ext fill:#FEF08A,stroke:#A16207,color:#713f12
 
-    AIXM["aixm-model"]:::model
-    FIXM["fixm-ed254-model"]:::model
+    AIXM["swim-aixm-model"]:::model
+    FIXM["swim-fixm-model-ed254"]:::model
     CORE["swim-framework-core"]:::fw
     FCONS["swim-framework-consumer"]:::fw
     FPROV["swim-framework-provider"]:::fw
