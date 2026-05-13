@@ -53,35 +53,10 @@ External volumes `keycloak-certs` and `keycloak-providers` must exist before sta
 
 **Consumer and Provider are separate products for different organizations.** A Provider (AISP role) publishes aviation data. A Consumer (ANSP role) subscribes to external providers. They never connect to each other within the same organization — this reflects real-world SWIM architecture.
 
-## Critical Rules
-
-### Consumer Never Connects to Provider
-
-A Consumer connects to a **Consumer Validator** (test harness with its own Artemis broker), never to the Provider of the same module. When troubleshooting Consumer AMQP issues, check the Consumer Validator's Artemis, not the Provider's.
-
-### No AI Authorship Attribution
-
-Never add `Co-Authored-By` or any AI tool attribution in commits. A global git hook strips these automatically.
-
-### Test Integrity
-
-Never change production code, disable features, or remove functionality to make tests pass. Investigate the real defect. Only the user can authorize production changes to support testing.
-
-### Deployment Confirmation
-
-Any deployment command to Kubernetes/OpenShift requires explicit user confirmation. Show the exact command and wait. Forbidden: starting/stopping Podman machines. Allowed without confirmation: `oc get`, `oc describe`, `mvn clean package`, local `podman compose`, make analysis tasks.
-
 ## Code Standards
 
-- **Container runtime**: Podman only, never Docker
-- **JSON processing**: jq only, never Python
-- **Maven builds**: always `mvn clean package -DskipTests` (not `-Dmaven.test.skip=true`)
 - **Integration tests**: `mvn verify -DskipITs=false`, run sequentially across projects (port conflicts with Testcontainers)
-- **Max 400 lines per file** (markdown exempt)
-- **No inner classes** — every class in its own file
-- **Logging**: Lombok `@Slf4j` annotation
 - **OpenShift resources**: physical YAML files only, no inline `oc create`
-- **Diagrams**: Mermaid code blocks in markdown, never SVG image references
 
 ## Technology Stack
 
