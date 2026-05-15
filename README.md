@@ -2,11 +2,11 @@
 
 **swim-developer** is an open-source reference architecture for SWIM services on Red Hat OpenShift.
 
-It delivers a reusable framework, four production-validated services (DNOTAM and ED-254, both Consumer and Provider), compliance validators, data models, and deployment tooling — everything required to implement EU Regulation 2021/116 (Common Project 1) without starting from scratch.
+It delivers a reusable framework, six production-validated services (DNOTAM, ED-254, and FF-ICE, both Consumer and Provider), compliance validators, data models, and deployment tooling — everything required to implement EU Regulation 2021/116 (Common Project 1) without starting from scratch.
 
 This is an open-source contribution to the SWIM development community: shared infrastructure, tested against real standards, so that each team can focus on their domain rather than on protocol mechanics.
 
-This project implements the [SWIM Technical Infrastructure](https://www.eurocontrol.int/concept/system-wide-information-management) standards defined by EUROCONTROL and ICAO, targeting **EU Regulation 2021/116, Common Project 1 (CP1)**. It includes a reusable framework, four working services (DNOTAM and ED-254), data models, and compliance validators, all built on [Quarkus](https://quarkus.io/) and designed to run on [Red Hat OpenShift](https://www.redhat.com/en/technologies/cloud-computing/openshift).
+This project implements the [SWIM Technical Infrastructure](https://www.eurocontrol.int/concept/system-wide-information-management) standards defined by EUROCONTROL and ICAO, targeting **EU Regulation 2021/116, Common Project 1 (CP1)**. It includes a reusable framework, six working services (DNOTAM, ED-254, and FF-ICE), data models, and compliance validators, all built on [Quarkus](https://quarkus.io/) and designed to run on [Red Hat OpenShift](https://www.redhat.com/en/technologies/cloud-computing/openshift).
 
 The services here are starting points — tested, validated, and ready to be extended. The framework is an invitation for the community to build new SWIM services on a shared, proven foundation.
 
@@ -16,14 +16,15 @@ The services here are starting points — tested, validated, and ready to be ext
 
 **A framework**, not a monolith. swim-developer is organized around a central idea: the infrastructure that every SWIM service needs (subscription lifecycle, AMQP messaging, heartbeat monitoring, self-healing) should be written once and shared, so that each new service only implements what is unique to its domain.
 
-**Four working services** that demonstrate both sides of the SWIM exchange, Consumer and Provider, for two real-world use cases:
+**Six working services** that demonstrate both sides of the SWIM exchange, Consumer and Provider, for three real-world use cases:
 
 - **DNOTAM** (Digital NOTAM), aeronautical information using AIXM 5.1.1
 - **ED-254** (Arrival Sequence / AMAN), arrival management using FIXM 4.3
+- **FF-ICE** (Flight Filing), flight and flow information using FIXM 4.3
 
 **Compliance validators** that exercise the full AMQP subscription lifecycle against running instances, verifying SPEC-170 conformance.
 
-**Data models** (AIXM 5.1.1, FIXM 4.3) generated from the official XSD schemas, ready to use.
+**Data models** (AIXM 5.1.1, FIXM 4.3, FIXM FF-ICE) generated from the official XSD schemas, ready to use.
 
 ---
 
@@ -36,7 +37,7 @@ This project implements the following standards. Each one shaped concrete design
 | [EUROCONTROL SPEC-170](https://www.eurocontrol.int/publication/spec-170-swim-ti-yellow-profile) | SWIM-TI Yellow Profile: AMQP 1.0 messaging, Subscription Manager API, heartbeat contracts, subscription lifecycle |
 | [EUROCAE ED-254](https://www.eurocae.net/) | Arrival Sequence Service: subscription/notification model for downstream ATSU coordination |
 | [AIXM 5.1.1](https://aixm.aero/) | Aeronautical Information Exchange Model: DNOTAM events (runway closures, obstacles, navaid status) |
-| [FIXM 4.3](https://fixm.aero/) | Flight Information Exchange Model: ED-254 arrival sequence messages |
+| [FIXM 4.3](https://fixm.aero/) | Flight Information Exchange Model: ED-254 arrival sequence and FF-ICE flight filing messages |
 | EU Regulation 2021/116 | Common Project 1 (CP1): the regulatory mandate for SWIM adoption |
 | AMQP 1.0 / TLS 1.3 | Transport and security: mutual TLS with X.509 certificates, SASL authentication (SWIM-TIYP-0008) |
 
@@ -62,7 +63,7 @@ swim-developer follows **Hexagonal Architecture** (Ports and Adapters). The doma
    Dependency Rule: Adapters depend on Core. Core depends on nothing.
 ```
 
-The framework was validated by building the second service family (ED-254) entirely on framework SPIs. No infrastructure code was copied, only domain-specific implementations were written. This confirmed that ~55% of what would otherwise be duplicated across services is handled by the framework.
+The framework was validated by building the second and third service families (ED-254 and FF-ICE) entirely on framework SPIs. No infrastructure code was copied, only domain-specific implementations were written. This confirmed that ~55% of what would otherwise be duplicated across services is handled by the framework.
 
 For C4 diagrams, sequence diagrams, and architecture decision records, see the [swim-developer portal](https://swim-developer.github.io/architecture.html).
 
@@ -89,6 +90,8 @@ For C4 diagrams, sequence diagrams, and architecture decision records, see the [
 | **swim-dnotam-consumer** | Consumer (ANSP) | Subscribes to external providers; processes AIXM messages; persists to MongoDB; routes to Kafka by business intent |
 | **swim-ed254-provider** | Provider (AISP) | Subscription Manager REST API; publishes arrival sequence events (FIXM 4.3) via AMQP; PostgreSQL |
 | **swim-ed254-consumer** | Consumer (ANSP) | Subscribes to upstream AMAN providers; processes arrival sequence updates; persists to MongoDB |
+| **swim-ffice-provider** | Provider (eASP) | Subscription Manager REST API; publishes FF-ICE flight filing events (FIXM 4.3) via AMQP; PostgreSQL |
+| **swim-ffice-consumer** | Consumer (ANSP) | Subscribes to external eASP providers; processes FF-ICE flight filing messages; persists to MongoDB |
 
 ### Data Models
 
@@ -96,6 +99,7 @@ For C4 diagrams, sequence diagrams, and architecture decision records, see the [
 |--------|-------------|
 | **swim-aixm-model** | JAXB bindings for AIXM 5.1.1 and GML 3.2.1, generated from XSD |
 | **swim-fixm-model-ed254** | JAXB bindings for FIXM 4.3 and ED-254 extension, generated from XSD |
+| **swim-fixm-ffice-model** | JAXB bindings for FIXM 4.3 and FF-ICE 1.1 extension, generated from XSD |
 
 ### Extensions
 
@@ -105,6 +109,7 @@ For C4 diagrams, sequence diagrams, and architecture decision records, see the [
 | **swim-outbox-kafka-ed254** | Routes ED-254 arrival sequence events to Kafka |
 | **swim-inbox-kafka-dnotam** | Ingests DNOTAM events from Kafka into the provider pipeline |
 | **swim-inbox-kafka-ed254** | Ingests ED-254 events from Kafka into the provider pipeline |
+| **swim-outbox-kafka-ffice** | Routes FF-ICE flight filing events to Kafka |
 
 ### Archetypes
 
@@ -127,6 +132,8 @@ Test harnesses that exercise the full AMQP subscription lifecycle against real p
 | **swim-dnotam-provider-validator** | DNOTAM provider compliance validation |
 | **swim-ed254-consumer-validator** | ED-254 consumer compliance validation |
 | **swim-ed254-provider-validator** | ED-254 provider compliance validation |
+| **swim-ffice-consumer-validator** | FF-ICE consumer compliance validation |
+| **swim-ffice-provider-validator** | FF-ICE provider compliance validation |
 
 ---
 
@@ -148,15 +155,19 @@ swim-developer/
 |-- swim-dnotam-consumer/                    DNOTAM Consumer service
 |-- swim-ed254-provider/                     ED-254 Provider service
 |-- swim-ed254-consumer/                     ED-254 Consumer service
+|-- swim-ffice-provider/                     FF-ICE Provider service
+|-- swim-ffice-consumer/                     FF-ICE Consumer service
 |
 |-- swim-aixm-model/                         AIXM 5.1.1 data model
 |-- swim-fixm-model-ed254/                   FIXM 4.3 / ED-254 data model
+|-- swim-fixm-ffice-model/                   FIXM 4.3 / FF-ICE data model
 |
 |-- swim-extensions/                         Kafka inbox/outbox adapters (4 modules)
 |   |-- swim-outbox-kafka-dnotam/
 |   |-- swim-outbox-kafka-ed254/
 |   |-- swim-inbox-kafka-dnotam/
-|   +-- swim-inbox-kafka-ed254/
+|   |-- swim-inbox-kafka-ed254/
+|   +-- swim-outbox-kafka-ffice/
 |
 |-- swim-consumer-archetype/                 Maven archetype for new consumer services
 |-- swim-provider-archetype/                 Maven archetype for new provider services
@@ -169,10 +180,12 @@ swim-developer/
     |-- swim-dnotam-consumer-validator/
     |-- swim-dnotam-provider-validator/
     |-- swim-ed254-consumer-validator/
-    +-- swim-ed254-provider-validator/
+    |-- swim-ed254-provider-validator/
+    |-- swim-ffice-consumer-validator/
+    +-- swim-ffice-provider-validator/
 ```
 
-26 Maven modules, 4 deployable services, 6 framework libraries, 4 extension adapters, 3 archetypes, 7 validators, 2 data models.
+32 Maven modules, 6 deployable services, 6 framework libraries, 5 extension adapters, 3 archetypes, 9 validators, 3 data models.
 
 ---
 
@@ -219,10 +232,13 @@ Each project is an independent Git repository. Clone only what you need.
 | [swim-digital-notam-provider](https://github.com/swim-developer/swim-digital-notam-provider) | DNOTAM Provider service | AISPs publishing Digital NOTAMs |
 | [swim-ed254-consumer](https://github.com/swim-developer/swim-ed254-consumer) | ED-254 Arrival Sequence Consumer | ANSPs receiving E-AMAN data |
 | [swim-ed254-provider](https://github.com/swim-developer/swim-ed254-provider) | ED-254 Arrival Sequence Provider | AISPs publishing E-AMAN data |
+| [swim-ffice-consumer](https://github.com/swim-developer/swim-ffice-consumer) | FF-ICE Consumer service | ANSPs receiving flight filing data |
+| [swim-ffice-provider](https://github.com/swim-developer/swim-ffice-provider) | FF-ICE Provider service | eASPs publishing flight filing data |
 | [swim-developer-validators](https://github.com/swim-developer/swim-developer-validators) | Compliance validators (consumer + provider) | Service developers, conformance testing |
 | [swim-developer-extensions](https://github.com/swim-developer/swim-developer-extensions) | Kafka inbox/outbox adapters | Service integrators |
 | [swim-aixm-model](https://github.com/swim-developer/swim-aixm-model) | AIXM 5.1.1 JAXB bindings | Anyone parsing DNOTAM XML |
 | [swim-fixm-model-ed254](https://github.com/swim-developer/swim-fixm-model-ed254) | FIXM 4.3 + ED-254 JAXB bindings | Anyone parsing ED-254 XML |
+| [swim-fixm-ffice-model](https://github.com/swim-developer/swim-fixm-ffice-model) | FIXM 4.3 + FF-ICE JAXB bindings | Anyone parsing FF-ICE XML |
 | [swim-model-archetype](https://github.com/swim-developer/swim-model-archetype) | Maven archetype for new data model projects | Service developers building new data models |
 | [swim-developer-operator](https://github.com/swim-developer/swim-developer-operator) | Kubernetes/OpenShift Operator | Platform engineers |
 | [swim-developer-add-ons](https://github.com/swim-developer/swim-developer-add-ons) | Artemis ACK plugin, Keycloak SPI | Platform engineers |
