@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: 'provider-artemis'
+    metrics_path: '/metrics/'
+    static_configs:
+      - targets: ['provider-artemis:8161']
+
+  - job_name: 'dnotam-consumer-validator-artemis'
+    metrics_path: '/metrics/'
+    static_configs:
+      - targets: ['dnotam-consumer-validator-artemis:8161']
+
+  - job_name: 'ed254-consumer-validator-artemis'
+    metrics_path: '/metrics/'
+    static_configs:
+      - targets: ['ed254-consumer-validator-artemis:8161']
+
+  - job_name: 'tempo'
+    static_configs:
+      - targets: ['tempo:3200']

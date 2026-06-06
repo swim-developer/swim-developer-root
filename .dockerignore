@@ -1,0 +1,23 @@
+# Used only for tools/provider-artemis (compose build context: .).
+# Other images built from compose use their own context (e.g. validator-artemis → context: tools + tools/.dockerignore).
+.git
+**/.DS_Store
+tools/provider-artemis/.build-log-plugin
+
+*
+!tools/
+tools/*
+!tools/certificates/
+tools/certificates/*
+!tools/certificates/generated/
+!tools/certificates/generated/**
+!tools/provider-artemis/
+tools/provider-artemis/*
+!tools/provider-artemis/**
+!add-ons/
+add-ons/*
+!add-ons/activemq-log-plugins/
+add-ons/activemq-log-plugins/*
+!add-ons/activemq-log-plugins/target/
+add-ons/activemq-log-plugins/target/*
+!add-ons/activemq-log-plugins/target/activemq-log-plugin.jar
